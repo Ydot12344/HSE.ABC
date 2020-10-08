@@ -21,16 +21,17 @@ section '.data' data readable writable
         tmp2         dd ?
         tmpStack     dd ?
         vec          rd 100
+        newvec       rd 100
 
 ;--------------------------------------------------------------------------
 section '.code' code readable executable
 start:
 ; 1) vector input
         call VectorInput
-; 2) vector output
+        call CopyVector
         push strOut
         call [printf]
-        call VectorPrint
+        call PrintVector
 finish:
         call [getch]
 
@@ -91,19 +92,20 @@ getVecLoop:
 endInputVector:
         ret
 ;--------------------------------------------------------------------------
-VectorPrint:
+CopyVector:
         xor ecx, ecx            ; ecx = 0
         mov ebx, vec
-        xor edx, edx            ;edx = 0
-PrintLoop:
+        xor edx, edx
+        xor eax, eax
+VectorCopyLoop:
         cmp ecx, [vec_size]
-        je endPrintVector      ; to end of loop
+        je endCopyVector      ; to end of loop
 
         cmp dword [ebx], 0
-        jle PrintElement
+        jle CopyElement
         cmp edx, 0
         je ChangeFlag
-        jmp PrintElement
+        jmp CopyElement
 
 
 
@@ -111,27 +113,45 @@ ChangeFlag:
         mov edx, 1
         inc ecx
         add ebx, 4
-        jmp PrintLoop
+        jmp VectorCopyLoop
 
 
-PrintElement:
-        mov [tmp2], edx
+CopyElement:
+        mov [tmp], ecx
+        mov ecx, dword[ebx]
+        mov [newvec + eax*4], ecx
+        mov ecx, [tmp]
+        inc ecx
+        inc eax
+
+        add ebx, 4
+        jmp VectorCopyLoop
+
+endCopyVector:
+        neg edx
+        add [vec_size], edx
+        ret
+
+;----------------------------------------------------------------------------
+PrintVector:
+        xor ecx, ecx
+        mov ebx, newvec
+VectorLoop:
+        cmp ecx, [vec_size]
+        je endPrintVector
         mov [tmp], ecx
         push dword [ebx]
         push ecx
         push strVecElemOut
         call [printf]
         add esp, 12
-        mov edx, [tmp2]
         mov ecx, [tmp]
         inc ecx
         add ebx, 4
-        jmp PrintLoop
+        jmp VectorLoop
 
 endPrintVector:
         ret
-
-;-------------------------------third act - including HeapApi--------------------------
                                                  
 section '.idata' import data readable
     library kernel, 'kernel32.dll',\
@@ -148,4 +168,4 @@ include 'api\kernel32.inc'
     import msvcrt,\
            printf, 'printf',\
            scanf, 'scanf',\
-           getch, '_getch'           
+           getch, '_getch'
